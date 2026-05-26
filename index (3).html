@@ -1,0 +1,262 @@
+# Moderný 3D Hadík – HTML/CSS/JavaScript
+
+Ulož ako `index.html` a otvor v prehliadači.
+
+```html
+<!DOCTYPE html>
+<html lang="sk">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>3D Hadík</title>
+
+<style>
+body{
+    margin:0;
+    background:#050505;
+    display:flex;
+    justify-content:center;
+    align-items:center;
+    height:100vh;
+    overflow:hidden;
+    font-family:Arial, sans-serif;
+}
+
+.game{
+    position:relative;
+}
+
+canvas{
+    background:linear-gradient(to bottom,#111,#000);
+    border:4px solid #00ff99;
+    box-shadow:
+    0 0 20px #00ff99,
+    0 0 50px #00ff99;
+    border-radius:20px;
+}
+
+.score{
+    position:absolute;
+    top:-50px;
+    left:0;
+    color:#00ff99;
+    font-size:28px;
+    text-shadow:0 0 10px #00ff99;
+}
+
+.info{
+    position:absolute;
+    bottom:-45px;
+    left:0;
+    color:white;
+    font-size:18px;
+}
+</style>
+</head>
+<body>
+
+<div class="game">
+    <div class="score">Skóre: <span id="score">0</span></div>
+
+    <canvas id="game" width="700" height="700"></canvas>
+
+    <div class="info">
+        Ovládanie: ⬅ ➡ ⬆ ⬇
+    </div>
+</div>
+
+<script>
+const canvas = document.getElementById("game");
+const ctx = canvas.getContext("2d");
+
+const grid = 35;
+const tileCount = canvas.width / grid;
+
+let snake = [
+    {x:10, y:10}
+];
+
+let dx = 1;
+let dy = 0;
+
+let food = {
+    x:15,
+    y:15
+};
+
+let score = 0;
+
+function randomFood(){
+    food.x = Math.floor(Math.random() * tileCount);
+    food.y = Math.floor(Math.random() * tileCount);
+}
+
+function drawCube(x,y,color){
+
+    const px = x * grid;
+    const py = y * grid;
+
+    // hlavná plocha
+    ctx.fillStyle = color;
+    ctx.fillRect(px,py,grid,grid);
+
+    // svetlo hore
+    ctx.fillStyle = "rgba(255,255,255,0.25)";
+    ctx.beginPath();
+    ctx.moveTo(px,py);
+    ctx.lineTo(px+grid,py);
+    ctx.lineTo(px+grid-8,py+8);
+    ctx.lineTo(px+8,py+8);
+    ctx.fill();
+
+    // tieň dole
+    ctx.fillStyle = "rgba(0,0,0,0.35)";
+    ctx.beginPath();
+    ctx.moveTo(px,py+grid);
+    ctx.lineTo(px+grid,py+grid);
+    ctx.lineTo(px+grid-8,py+grid-8);
+    ctx.lineTo(px+8,py+grid-8);
+    ctx.fill();
+
+    // glow
+    ctx.shadowBlur = 20;
+    ctx.shadowColor = color;
+    ctx.strokeStyle = "rgba(255,255,255,0.15)";
+    ctx.strokeRect(px,py,grid,grid);
+    ctx.shadowBlur = 0;
+}
+
+function gameLoop(){
+
+    ctx.clearRect(0,0,canvas.width,canvas.height);
+
+    // futuristická mriežka
+    ctx.strokeStyle = "rgba(0,255,153,0.07)";
+
+    for(let i=0;i<canvas.width;i+=grid){
+        ctx.beginPath();
+        ctx.moveTo(i,0);
+        ctx.lineTo(i,canvas.height);
+        ctx.stroke();
+
+        ctx.beginPath();
+        ctx.moveTo(0,i);
+        ctx.lineTo(canvas.width,i);
+        ctx.stroke();
+    }
+
+    // pohyb hada
+    const head = {
+        x:snake[0].x + dx,
+        y:snake[0].y + dy
+    };
+
+    // teleport cez steny
+    if(head.x < 0) head.x = tileCount - 1;
+    if(head.x >= tileCount) head.x = 0;
+    if(head.y < 0) head.y = tileCount - 1;
+    if(head.y >= tileCount) head.y = 0;
+
+    // kolízia so sebou
+    for(let part of snake){
+        if(head.x === part.x && head.y === part.y){
+            alert("Game Over! Skóre: " + score);
+            snake = [{x:10,y:10}];
+            dx = 1;
+            dy = 0;
+            score = 0;
+            document.getElementById("score").innerText = score;
+            randomFood();
+            return;
+        }
+    }
+
+    snake.unshift(head);
+
+    // jedlo
+    if(head.x === food.x && head.y === food.y){
+        score++;
+        document.getElementById("score").innerText = score;
+        randomFood();
+    }else{
+        snake.pop();
+    }
+
+    // jedlo 3D
+    drawCube(food.x,food.y,"#ff0055");
+
+    // had
+    snake.forEach((part,index)=>{
+
+        let color = index === 0
+        ? "#00ff99"
+        : "#00ccff";
+
+        drawCube(part.x,part.y,color);
+
+        // oči
+        if(index === 0){
+            ctx.fillStyle = "black";
+
+            ctx.beginPath();
+            ctx.arc(part.x*grid+10, part.y*grid+12, 3, 0, Math.PI*2);
+            ctx.fill();
+
+            ctx.beginPath();
+            ctx.arc(part.x*grid+25, part.y*grid+12, 3, 0, Math.PI*2);
+            ctx.fill();
+        }
+    });
+}
+
+setInterval(gameLoop,120);
+
+window.addEventListener("keydown", e=>{
+
+    if(e.key === "ArrowUp" && dy === 0){
+        dx = 0;
+        dy = -1;
+    }
+
+    if(e.key === "ArrowDown" && dy === 0){
+        dx = 0;
+        dy = 1;
+    }
+
+    if(e.key === "ArrowLeft" && dx === 0){
+        dx = -1;
+        dy = 0;
+    }
+
+    if(e.key === "ArrowRight" && dx === 0){
+        dx = 1;
+        dy = 0;
+    }
+});
+</script>
+
+</body>
+</html>
+```
+
+Funkcie:
+
+* moderný neon dizajn
+* 3D efekt blokov
+* glowing efekty
+* futuristická mriežka
+* teleport cez steny
+* skóre systém
+* Game Over
+* responzívny canvas
+
+Môžeš pridať:
+
+* multiplayer
+* bossov
+* speed boost
+* skiny hada
+* soundtrack
+* online tabuľku skóre
+* WebGL 3D kameru
+
